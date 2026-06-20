@@ -3,24 +3,27 @@
 Everything here is built and the data-independent tools are tested. When the jab
 mocap lands, you run these in order. Config lives in `config.env`.
 
-## Verified tool chain
+## Verified tool chain (CHOSEN: markerless GVHMR)
 ```
-mocap (SMPL-X / BVH / video->GVHMR)
-  → GMR            scripts/smplx_to_robot.py --robot unitree_g1   → jab.pkl
-     → bridge      g1/scripts/11_pkl_to_csv.py                     → jab.csv   (TESTED)
-        → WBT      whole_body_tracking/scripts/csv_to_npz.py       → jab.npz
-           → train unitree_rl_lab/scripts/train.py
-                   Unitree-G1-Tracking-No-State-Estimation --motion_file=jab.npz
-              → play.py (sim) → MuJoCo sim2sim → real G1
+phone video of the jab
+  → GVHMR  tools/demo/demo.py --video -s                → hmr4d_results.pt
+     → GMR   scripts/gvhmr_to_robot.py --robot unitree_g1 → jab.pkl
+        → bridge  scripts/11_pkl_to_csv.py                → jab.csv   (TESTED)
+           → WBT  whole_body_tracking/scripts/csv_to_npz.py → jab.npz
+              → train unitree_rl_lab/scripts/train.py
+                      Unitree-G1-Tracking-No-State-Estimation --motion_file=jab.npz
+                 → play.py (sim) → MuJoCo sim2sim → real G1
 ```
 **Shortcut:** a LAFAN1 `fight` clip is already CSV → start at `csv_to_npz.py` and
-train a jab TODAY while our own mocap is captured.
+train a jab TODAY while our own video is captured.
+(AprilTag capture under `apriltag/` is built but NOT the chosen path — fallback only.)
 
 ## Files
 ```
 config.env                 edit: repo paths, motion name, fps, DoF, quat order
 scripts/00_setup.sh        clone GMR + whole_body_tracking + unitree_rl_lab; smoke-test cmd
-scripts/10_retarget.sh     GMR: smplx|bvh -> jab.pkl
+scripts/09_gvhmr.sh        run GVHMR on the jab video -> hmr4d_results.pt
+scripts/10_retarget.sh     GMR: gvhmr|smplx|bvh -> jab.pkl
 scripts/11_pkl_to_csv.py   bridge GMR .pkl -> CSV   (TESTED, stdlib+numpy)
 scripts/20_validate_motion.py  gate a reference motion before training (TESTED, stdlib)
 scripts/12_to_npz.sh       CSV -> NPZ via whole_body_tracking
@@ -41,8 +44,9 @@ bash scripts/00_setup.sh            # clone repos
 bash scripts/12_to_npz.sh  /path/to/lafan1_fight.csv
 bash scripts/30_train.sh
 
-# C. When OUR jab arrives:
-bash scripts/10_retarget.sh smplx /path/to/jab_smplx.npz      # -> jab.pkl
+# C. When OUR jab video arrives (markerless GVHMR path):
+bash scripts/09_gvhmr.sh                                       # video -> hmr4d_results.pt
+bash scripts/10_retarget.sh gvhmr "$GVHMR_PRED"               # -> jab.pkl
 uv run --with numpy python scripts/11_pkl_to_csv.py \
     --pkl "$WORK/jab.pkl" --out "$WORK/jab.csv" \
     --template-csv "$LAFAN1_TEMPLATE_CSV" --quat-order "$QUAT_ORDER"
