@@ -55,8 +55,21 @@ def main():
         rows = list(csv.reader(f))
     if not rows:
         sys.exit("empty CSV")
-    header, data = rows[0], rows[1:]
-    print(f"\nValidating: {args.csv_path}\n  {DIM}{len(data)} frames, {len(header)} columns{RST}\n")
+    # GMR's batch_gmr_pkl_to_csv.py writes HEADERLESS numeric CSV (root_pos, root_rot,
+    # dof). LAFAN1 CSVs may carry a header. Detect by trying to parse row 0.
+    def numeric_row(r):
+        try:
+            [float(x) for x in r]
+            return True
+        except ValueError:
+            return False
+    if numeric_row(rows[0]):
+        header, data = None, rows                      # headerless (GMR / canonical)
+    else:
+        header, data = rows[0], rows[1:]               # has a header row
+    ncol = len(rows[0])
+    print(f"\nValidating: {args.csv_path}\n  {DIM}{len(data)} frames, {ncol} columns"
+          f" ({'headerless' if header is None else 'headered'}){RST}\n")
 
     # numeric parse ----------------------------------------------------------
     print("Integrity")
@@ -69,7 +82,6 @@ def main():
     flat = [v for r in M for v in r]
     check(all(math.isfinite(v) for v in flat), "no NaN/inf values")
 
-    ncol = len(header)
     expected = 7 + args.dof
     check(ncol == expected, f"column count == 7 + dof({args.dof})",
           f"got {ncol}; expected {expected} (3 root + 4 quat + {args.dof} joints)")

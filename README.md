@@ -6,9 +6,9 @@ mocap lands, you run these in order. Config lives in `config.env`.
 ## Verified tool chain (CHOSEN: markerless GVHMR)
 ```
 phone video of the jab
-  → GVHMR  tools/demo/demo.py --video -s                → hmr4d_results.pt
-     → GMR   scripts/gvhmr_to_robot.py --robot unitree_g1 → jab.pkl
-        → bridge  scripts/11_pkl_to_csv.py                → jab.csv   (TESTED)
+  → GVHMR  tools/demo/demo.py --video -s                  → hmr4d_results.pt
+     → GMR   scripts/gvhmr_to_robot.py --robot unitree_g1   → jab.pkl
+        → GMR scripts/batch_gmr_pkl_to_csv.py (official)    → jab.csv (headerless)
            → WBT  whole_body_tracking/scripts/csv_to_npz.py → jab.npz
               → train unitree_rl_lab/scripts/train.py
                       Unitree-G1-Tracking-No-State-Estimation --motion_file=jab.npz
@@ -23,10 +23,11 @@ it's a standalone, non-technical checklist (camera angle, settings, motion, QC).
 ## Files
 ```
 config.env                 edit: repo paths, motion name, fps, DoF, quat order
-scripts/00_setup.sh        clone GMR + whole_body_tracking + unitree_rl_lab; smoke-test cmd
+scripts/setup_capture.sh   PRE-ISAAC: clone+env GMR (CPU) + GVHMR (Linux/WSL)
+scripts/00_setup.sh        ISAAC: clone whole_body_tracking + unitree_rl_lab; Isaac Lab notes
 scripts/09_gvhmr.sh        run GVHMR on the jab video -> hmr4d_results.pt
 scripts/10_retarget.sh     GMR: gvhmr|smplx|bvh -> jab.pkl
-scripts/11_pkl_to_csv.py   bridge GMR .pkl -> CSV   (TESTED, stdlib+numpy)
+scripts/11_to_csv.sh       GMR official batch_gmr_pkl_to_csv.py -> headerless CSV
 scripts/20_validate_motion.py  gate a reference motion before training (TESTED, stdlib)
 scripts/12_to_npz.sh       CSV -> NPZ via whole_body_tracking
 scripts/30_train.sh        train the tracking policy (Isaac Lab, Nebius GPU)
@@ -35,8 +36,11 @@ scripts/31_play.sh         eval in sim -> sim2sim -> sim2real notes
 
 ## Order of operations
 ```bash
-# A. While data is being captured — get the stack working (no jab needed):
-bash scripts/00_setup.sh            # clone repos
+# A0. Pre-Isaac capture+retarget stack (no Isaac Sim). GMR here; GVHMR on Linux/WSL:
+bash scripts/setup_capture.sh       # + license-gated SMPL/checkpoint downloads it prints
+
+# A. While data is being captured — get the TRAINING stack working (no jab needed):
+bash scripts/00_setup.sh            # clone training repos
 # ... install Isaac Lab + deps (see 00_setup.sh output) ...
 # Smoke-test training on a SHIPPED clip to prove GPU+IsaacLab+task wiring:
 #   python scripts/train.py Unitree-G1-Tracking-No-State-Estimation \
@@ -47,13 +51,11 @@ bash scripts/12_to_npz.sh  /path/to/lafan1_fight.csv
 bash scripts/30_train.sh
 
 # C. When OUR jab video arrives (markerless GVHMR path):
-bash scripts/09_gvhmr.sh                                       # video -> hmr4d_results.pt
-bash scripts/10_retarget.sh gvhmr "$GVHMR_PRED"               # -> jab.pkl
-uv run --with numpy python scripts/11_pkl_to_csv.py \
-    --pkl "$WORK/jab.pkl" --out "$WORK/jab.csv" \
-    --template-csv "$LAFAN1_TEMPLATE_CSV" --quat-order "$QUAT_ORDER"
-python scripts/20_validate_motion.py "$WORK/jab.csv" --fps 30 --dof 29   # GATE
-bash scripts/12_to_npz.sh "$WORK/jab.csv"
+bash scripts/09_gvhmr.sh                            # video -> hmr4d_results.pt
+bash scripts/10_retarget.sh gvhmr "$GVHMR_PRED"     # -> jab.pkl
+bash scripts/11_to_csv.sh                           # GMR official -> $WORK/csv/jab.csv
+python scripts/20_validate_motion.py "$CSV_OUT" --fps 30 --dof 29   # GATE
+bash scripts/12_to_npz.sh "$CSV_OUT"
 bash scripts/30_train.sh
 bash scripts/31_play.sh             # capture for the demo video
 ```

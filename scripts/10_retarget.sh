@@ -29,4 +29,4 @@ case "${MODE}" in
 esac
 
 echo ">> GMR wrote ${PKL_OUT}"
-echo ">> Next: python scripts/11_pkl_to_csv.py  (bridge to csv_to_npz input)"
+echo ">> Next: bash scripts/11_to_csv.sh   (GMR official pkl->csv for BeyondMimic)"
