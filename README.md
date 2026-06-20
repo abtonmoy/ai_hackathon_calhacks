@@ -17,6 +17,9 @@ phone video of the jab
 **Shortcut:** a LAFAN1 `fight` clip is already CSV → start at `csv_to_npz.py` and
 train a jab TODAY while our own video is captured.
 
+**Filming the jab:** hand whoever's holding the camera **`CAPTURE_GUIDE.md`** —
+it's a standalone, non-technical checklist (camera angle, settings, motion, QC).
+
 ## Files
 ```
 config.env                 edit: repo paths, motion name, fps, DoF, quat order
