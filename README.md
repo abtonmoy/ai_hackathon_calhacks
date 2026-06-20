@@ -16,7 +16,6 @@ phone video of the jab
 ```
 **Shortcut:** a LAFAN1 `fight` clip is already CSV → start at `csv_to_npz.py` and
 train a jab TODAY while our own video is captured.
-(AprilTag capture under `apriltag/` is built but NOT the chosen path — fallback only.)
 
 ## Files
 ```
