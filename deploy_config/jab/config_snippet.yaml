@@ -1,0 +1,24 @@
+# Merge this into deploy/robots/g1/config/config.yaml in your unitree_rl_mjlab clone.
+# It adds a Mimic FSM state for the jab, alongside the stock Passive / FixStand / Velocity.
+# id 5 is taken by the stock dance example, so the jab uses id 6.
+
+FSM:
+  _:                       # add this entry under the existing `_:` enabled-fsms map
+    Mimic_Jab:
+      id: 6
+      type: Mimic
+
+  # FixStand is the stock stand state. Add the jab as a reachable transition from it.
+  FixStand:
+    transitions:
+      Mimic_Jab: RB + A.on_pressed   # add this line to FixStand's existing transitions
+
+  # The jab state itself.
+  Mimic_Jab:
+    transitions:
+      Passive: LT + B.on_pressed     # always keep an escape to Passive
+      FixStand: RT + A.on_pressed
+    motion_file: config/policy/mimic/jab/params/jab.npz
+    policy_dir: config/policy/mimic/jab/
+    time_start: 0.0
+    time_end: 1000.0

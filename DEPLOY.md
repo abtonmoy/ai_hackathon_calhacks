@@ -7,6 +7,25 @@ the source of truth. The robot is a confirmed 29-DoF Unitree G1.
 The remaining work is robot access, matching this config in the deploy stack, a
 MuJoCo sim-to-sim pass, then hardware. The policy and config are ready and portable.
 
+The deploy config is now generated and ready in `deploy_config/`: a drop-in package
+for `unitree_rl_mjlab`'s `deploy/robots/g1` (the `deploy.yaml` gains/scales/pose/joint
+map, the `policy.onnx`, a single-jab `jab.npz` reference, and the FSM snippet). It is
+generated from `env.yaml` by `scripts/gen_deploy_config.py`, which self-verifies the
+joint ordering against the stack's template and the obs dim against the ONNX. See
+`deploy_config/README.md`.
+
+## 0. The robot variant (verified)
+
+Target: Unitree G1, 29-DoF configuration. Verified against the deploy stack source,
+not assumed. The stack's `deploy/robots/g1/main.cpp` is the "G1-29dof Controller" and
+sets `mode_machine() = 5`; the 23-DoF sibling sets `4`. The controller calls
+`check_mode_machine` at startup and aborts on a mismatched robot, so the wrong variant
+fails safe. 29 DoF = 12 legs + 3-DoF waist (yaw/roll/pitch) + 7-DoF arms per side
+(shoulder pitch/roll/yaw, elbow, wrist roll/pitch/yaw); our trained config has all of
+them, which is what separates it from the 23-DoF. Confirm with Ultimate Bots that the
+unit is the 29-DoF G1 and reports `mode_machine` 5 before driving it. Full notes in
+`deploy_config/README.md`.
+
 ## 1. Artifacts you ship to the deploy machine
 | File (in `runpod_out/final/`) | Role |
 |---|---|

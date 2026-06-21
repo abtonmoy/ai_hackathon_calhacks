@@ -108,7 +108,8 @@ capture hardware, with no mocap suit or marker rig.
 | Data ↔ hardware (29-DoF G1)              | confirmed with Ultimate Bots                                   |
 | Training (RunPod H100, unitree_rl_mjlab) | done; multi-motion ran 10k iters, converged ~0.68 rad          |
 | Deployable artifact (`policy.onnx`)      | exported and validated (obs → actions); in `runpod_out/final/` |
-| On-robot deploy                          | pending robot time                                             |
+| Deploy config (29-DoF G1)                | generated and self-verified; drop-in package in `deploy_config/` |
+| On-robot deploy                          | pending robot time (build deploy stack, sim-to-sim, hardware)  |
 
 ## Repo layout
 
@@ -116,6 +117,7 @@ capture hardware, with no mocap suit or marker rig.
 | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `TRAINING_RUNPOD.md`                           | The real, reproducible training run (RunPod H100, `unitree_rl_mjlab`): version pins, exact commands, results. Start here for training.                         |
 | `DEPLOY.md`                                    | Pre-flight package for the real G1: the deploy contract (obs 154-dim, action 29, 50 Hz, gains, joint map) extracted from the saved config, plus the checklist. |
+| `deploy_config/`                               | Drop-in deploy package for `unitree_rl_mjlab`'s `deploy/robots/g1` (29-DoF): generated `deploy.yaml`, `policy.onnx`, `jab.npz`, FSM snippet, plus the variant research. |
 | `CAPTURE_GUIDE.md`                             | How to film the jab (camera angle, framing).                                                                                                                   |
 | `data/README.md`                               | The CSV → npz → train data spec with format guarantees.                                                                                                        |
 | `G1_PLAN.md`                                   | Approach and key decisions.                                                                                                                                    |
