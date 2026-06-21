@@ -1,7 +1,16 @@
-# G1 Jab — Runbook (scaffold ready; just add the motion)
+# G1 Jab — Runbook (capture stack INSTALLED + VERIFIED)
 
-Everything here is built and the data-independent tools are tested. When the jab
-mocap lands, you run these in order. Config lives in `config.env`.
+Everything here is built. When the jab video lands, you run these in order.
+Config lives in `config.env`.
+
+> **VERIFIED 2026-06-20** on WSL Ubuntu + RTX 4060 (8GB): the full pre-Isaac
+> chain ran end-to-end on GVHMR's example clip —
+> `video → GVHMR → hmr4d_results.pt → GMR retarget → .pkl → official pkl→csv →
+> CSV → validator "OK to train"`. Installed via `setup_capture.sh` +
+> `wsl_gvhmr_setup.sh` + `wsl_gvhmr_deps.sh` (+ body models / checkpoints).
+> Remaining: Isaac-Lab training half (`00_setup.sh`, runs on Nebius).
+> Notes: GVHMR demo run with `-s` (no DPVO); `MUJOCO_GL=egl` for headless GMR;
+> `ffmpeg` only needed for preview videos; root quat is **xyzw** on this path.
 
 ## Verified tool chain (CHOSEN: markerless GVHMR)
 ```

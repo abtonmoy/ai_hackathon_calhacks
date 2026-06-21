@@ -37,11 +37,17 @@ echo "    GMR env: ${GMR_DIR}/.venv  (+torch cpu)"
 echo "==> GVHMR (capture, needs CUDA/Linux)"
 [ -d "${GVHMR_DIR}/.git" ] || git clone --recursive https://github.com/zju3dv/GVHMR "${GVHMR_DIR}"
 if is_linux; then
-  uv venv "${GVHMR_DIR}/.venv" --python 3.10
-  ( cd "${GVHMR_DIR}" && VIRTUAL_ENV="${GVHMR_DIR}/.venv" uv pip install -e . )
-  # GVHMR net + ViTPose + YOLO need CUDA torch (match the box's CUDA, e.g. cu121).
-  VIRTUAL_ENV="${GVHMR_DIR}/.venv" uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121 || true
-  # DPVO (visual odometry) is OPTIONAL and we run demo with -s (SLAM off) for a
+  GVENV="${GVHMR_DIR}/.venv"
+  uv venv "${GVENV}" --python 3.10
+  # CUDA torch first (GVHMR net + ViTPose + YOLO need it; cu121 for Ada/4060).
+  VIRTUAL_ENV="${GVENV}" uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121 || true
+  # Per GVHMR docs/INSTALL.md — requirements.txt has opencv + the bulk of deps:
+  ( cd "${GVHMR_DIR}" && VIRTUAL_ENV="${GVENV}" uv pip install -r requirements.txt && \
+    VIRTUAL_ENV="${GVENV}" uv pip install -e . )
+  TVER=$("${GVENV}/bin/python" -c "import torch; print(torch.__version__.split('+')[0])")
+  VIRTUAL_ENV="${GVENV}" uv pip install torch-scatter -f "https://data.pyg.org/whl/torch-${TVER}+cu121.html" || true
+  VIRTUAL_ENV="${GVENV}" uv pip install numba pypose
+  # DPVO (visual odometry) is OPTIONAL — we run demo with -s (SLAM off) for a
   # static-camera in-place jab, so we SKIP the DPVO CUDA build entirely.
 else
   echo "    !! Not Linux — GVHMR build skipped. Run in WSL2 (CUDA-on-WSL) or Nebius."
@@ -58,10 +64,11 @@ These are license-gated / large downloads — cannot be automated:
             ${GVHMR_DIR}/inputs/checkpoints/body_models/smpl/SMPL_{GENDER}.pkl
    - GMR:   the same SMPL-X .npz, pointed at by gvhmr_to_robot.py's body-model path
 
-2. GVHMR checkpoints (Google Drive, ~5GB) -> ${GVHMR_DIR}/inputs/checkpoints/ :
-     gvhmr/gvhmr_siga24_release.ckpt , hmr2/*.ckpt ,
-     vitpose/vitpose-h-multi-coco.pth , yolo/yolov8x.pt
-   (dpvo/dpvo.pth NOT needed — we run demo with -s, SLAM off.)
+2. GVHMR checkpoints — PUBLIC Google Drive, scriptable with gdown (no login):
+     uvx gdown --folder \\
+       https://drive.google.com/drive/folders/1eebJ13FUEXrKBawHpJroW0sNSxLjh9xD \\
+       -O ${GVHMR_DIR}/inputs/checkpoints --remaining-ok
+   Gets gvhmr/, hmr2/, vitpose/, yolo/ (dpvo/ unused — we run demo with -s).
 
 3. Verify:
      source ${GMR_DIR}/.venv/bin/activate   # (Scripts/activate on Windows)

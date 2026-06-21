@@ -16,15 +16,23 @@ import shutil
 import sys
 import zipfile
 
-# Order matters: check FEMALE before MALE since "MALE" is a substring of "FEMALE".
-GENDERS = ("NEUTRAL", "FEMALE", "MALE")
-
-
 def gender_of(name):
+    """Detect gender from either the SMPL-X naming (SMPLX_FEMALE.npz) or the SMPL
+    'basicmodel' naming (basicModel_m_lbs_*.pkl / basicmodel_neutral_*.pkl)."""
     u = name.upper()
-    for g in GENDERS:
-        if g in u:
-            return g
+    # Order matters: FEMALE before MALE since "MALE" is a substring of "FEMALE".
+    if "NEUTRAL" in u:
+        return "NEUTRAL"
+    if "FEMALE" in u:
+        return "FEMALE"
+    if "MALE" in u:
+        return "MALE"
+    # SMPL v1.1.0 abbreviations: ..._m_... / ..._f_...
+    base = os.path.basename(u)
+    if "_M_" in base:
+        return "MALE"
+    if "_F_" in base:
+        return "FEMALE"
     return None
 
 
