@@ -80,3 +80,6 @@ Standing jab, feet planted, no locomotion. Validate in MuJoCo before hardware.
 Clear a safety radius, keep an e-stop, run only with Ultimate Bots engineers.
 
 See `../G1_PLAN.md` for the strategy, paths A/B/C, and the fallback ladder.
+For the training half (CSV -> NPZ -> trained policy on Nebius), see
+`NEBIUS_TRAINING.md` — verified: needs Isaac Lab v2.1.0 + a mandatory WandB
+registry; the trainer loads motions via `--registry_name`, not a local path.

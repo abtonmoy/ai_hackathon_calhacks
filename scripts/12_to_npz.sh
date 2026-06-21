@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 # Step 4 — CSV -> NPZ via whole_body_tracking. Adds body pose/vel/accel via FK.
-# (LAFAN1 'fight' clips are already CSV and can be fed here directly, skipping
-#  GMR + the bridge — that's the "train a jab today" shortcut.)
+#
+# !! READ ../NEBIUS_TRAINING.md FIRST. Verified facts this wrapper can't enforce:
+#    - csv_to_npz.py LAUNCHES Isaac Sim (needs full Isaac Lab v2.1.0 install).
+#    - It UPLOADS the npz to a MANDATORY WandB registry (not a local file).
+#    - whole_body_tracking training then reads it via --registry_name, NOT a
+#      local --motion_file path. Set WANDB_ENTITY + create a "Motions" registry.
+# (LAFAN1 'fight' clips are already CSV and can be fed here directly.)
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 source "${HERE}/config.env"

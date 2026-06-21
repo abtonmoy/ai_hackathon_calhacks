@@ -1,0 +1,61 @@
+# G1 Jab — Data Handoff (for the Nebius / Isaac Lab side)
+
+You're getting **G1 reference-motion CSVs** produced from human jab videos
+(phone video → GVHMR markerless mocap → GMR retarget to Unitree G1). Your job:
+CSV → NPZ → train a motion-tracking policy. Everything here is verified through
+the CSV; the NPZ/train side is on you.
+
+## The files
+- `IMG_3425.csv` — first verified jab (520 frames, ~17 s). Validated: feet
+  planted, joints in radians, no NaN.
+- (More CSVs land here as we record the 50 — same exact format.)
+
+## Exact CSV format
+- **Headerless**, comma-separated, one row per frame.
+- **36 columns**, positional:
+  | cols | meaning |
+  |------|---------|
+  | 0–2 | root position x,y,z (meters) |
+  | 3–6 | root orientation quaternion, **xyzw** order |
+  | 7–35 | 29 DoF joint angles (radians), Unitree **G1-29dof** order |
+- **30 fps.**
+- Produced by GMR's `batch_gmr_pkl_to_csv.py`, which the GMR author wrote
+  **"for beyondmimic"** — i.e. intended to feed `whole_body_tracking`'s
+  `csv_to_npz.py`. So the layout + joint order should match by design.
+
+## What you do NOT need
+You do **not** install GMR, GVHMR, or any SMPL body models — those are the
+capture side's tools and are already done. The CSV is self-contained, already-
+retargeted G1 joint data. You only install your training stack: Isaac Lab v2.1.0
++ `whole_body_tracking` + WandB (the G1 robot description comes with the
+whole_body_tracking install in step 1 below).
+
+## What you do (HybridRobotics/whole_body_tracking, BeyondMimic)
+Full runbook with exact commands: `../NEBIUS_TRAINING.md`. Summary:
+1. Isaac Lab **v2.1.0** + `whole_body_tracking` installed on the Nebius GPU.
+2. WandB registry (mandatory): create a "Motions" collection, `export WANDB_ENTITY=...`.
+3. `python scripts/csv_to_npz.py --input_file IMG_3425.csv --input_fps 30 \
+   --output_name jab01 --headless`  → uploads npz to the registry.
+4. `python scripts/replay_npz.py --registry_name {org}-org/wandb-registry-motions/jab01`
+   → **watch this**: it's the visual check that the format mapped correctly.
+5. `python scripts/rsl_rl/train.py --task=Tracking-Flat-G1-v0 \
+   --registry_name {org}-org/wandb-registry-motions/jab01 --headless ...`
+
+## Two things to sanity-check on your end (the only real format risks)
+Both are caught instantly by `replay_npz.py` — if the replayed G1 looks correct,
+you're good; if it's wrong, these are the two knobs:
+1. **Quaternion order.** Our root_rot is **xyzw**. If `csv_to_npz`/BeyondMimic
+   expects **wxyz**, the robot will be rotated/tilted wrong → reorder cols 3–6.
+2. **Joint order / DoF count.** We emit 29 DoF in GMR's G1 order. If your G1
+   asset expects a different order (or 23 DoF), joints will look scrambled →
+   remap. (Expected to match since both target the standard G1-29dof URDF.)
+
+## For the 50 episodes
+Each clip becomes one CSV here (same format), one `csv_to_npz` run with a unique
+`--output_name` (jab01, jab02, …). For a first working policy you only need ONE
+clean jab — not all 50.
+
+## Provenance / questions
+Pipeline + scripts: `../README.md`, strategy: `../../G1_PLAN.md`. The capture
+half is fully tested locally on an RTX 4060 (WSL). Ping the capture side if a CSV
+looks off and we'll re-export.
