@@ -1,118 +1,152 @@
 # Human jab → Unitree G1 jab policy
 
-Hack Berkeley / Ultimate Bots Physical-AI hack. A full pipeline that turns a
-**phone video of a person throwing a jab** into a **trained, deployable
-motion-tracking policy for a real 29-DoF Unitree G1** — markerless mocap →
-retarget → RL in sim → ONNX policy for the robot.
+Hack Berkeley / Ultimate Bots Physical-AI hack. The pipeline takes a phone video of
+a person throwing a jab and produces a trained, deployable motion-tracking policy for
+a real 29-DoF Unitree G1. Capture is markerless, training runs in sim, and the output
+is an ONNX policy the robot can run.
 
 ![Pipeline: phone video → markerless mocap → G1 reference → trained policy](assets/pipeline_filmstrip.gif)
 
-*From one phone clip to a robot policy, left → right:*
-***(1) Input** — raw phone video of a human jab.*
-***(2) Transform** — markerless mocap (GVHMR) extracts the 3D motion.*
-***(3) Model input** — retargeted onto the G1 (this becomes the CSV → npz the model trains on).*
-***(4) Output** — the trained G1 policy executing the jab in sim.*
-*One of ~120 clips in the dataset.*
-
-## The pipeline
-```
-phone video
-  → GVHMR (markerless mocap: YOLO + ViTPose + HMR2.0 → world-grounded SMPL)
-  → GMR  (retarget SMPL → 29-DoF G1 via IK)
-  → CSV  (root pose + 29 joint angles per frame)        ← the handoff artifact
-  → unitree_rl_mjlab  csv_to_npz → npz                  (MuJoCo, no Isaac Lab)
-  → RL motion-tracking on an H100 → policy + policy.onnx (deployable)
-  → unitree_sdk2 → real G1 throws the jab
-```
+*Reading the strip left → right: the raw phone video of a human jab; the markerless
+mocap (GVHMR) that extracts the 3D motion; that motion retargeted onto the G1, which
+becomes the CSV the model trains on; and the trained G1 policy executing the jab in
+sim. One of about 120 clips in the dataset.*
 
 ## Architecture
 
-Three independent stages — **capture → train → deploy** — connected by one portable
-artifact: a **CSV of G1 joint angles**. Each stage is swappable and runs on different
-hardware.
+Three independent stages, capture → train → deploy, connected by one portable
+artifact: a CSV of G1 joint angles. Each stage runs on different hardware and is
+swappable on its own.
 
-### 1. Capture — markerless mocap → G1 reference  *(laptop GPU)*
-A phone video runs through four vision models, then a retargeter:
-- **YOLOv8** → detect the person · **ViTPose-H** → 17 2D keypoints · **HMR2.0
-  (4D-Humans)** → 3D body mesh · **GVHMR** → world-grounded SMPL motion (run with
-  `-s`, no SLAM, for static-camera clips).
-- **GMR** retargets the human SMPL motion onto the G1 by **inverse kinematics** —
-  solving "which 29 G1 joint angles reproduce this motion," within joint limits.
-  (Human body ≠ robot body, so you can't copy angles directly.)
+```
+  CAPTURE  (laptop GPU / WSL)
+  ────────────────────────────────────────────────────────────────────────
+   phone video
+      │   YOLOv8 → ViTPose-H → HMR2.0 → GVHMR   (world-grounded SMPL, run -s)
+      │   detect   17 2D kpts   3D mesh   markerless mocap
+      ▼   GMR : inverse-kinematics retarget (human SMPL → robot joints)
+   29-DoF G1 joint angles
+        │
+        ▼
+   CSV   root_pos[3] + root_rot_xyzw[4] + 29 joints  @ 30 fps   (headerless)
+         ~120 clips · format-verified against the trainer and the G1 URDF
+        │
+  TRAIN  (RunPod H100)
+  ────────────────────────────────────────────────────────────────────────
+   csv_to_npz → npz   (+ body vel/accel via forward kinematics)
+      │   ~99 clips concatenated → one reference, sampled per episode
+      ▼   unitree_rl_mjlab · Unitree-G1-Tracking-No-State-Estimation  (PPO)
+          MuJoCo-Warp, 4096 envs, domain randomization, ~50 Hz
+          obs: joint encoders + IMU  →  MLP  →  29 joint-position targets
+      │   auto-export
+      ▼
+   policy.onnx   (obs → actions)
+        │
+  DEPLOY  (Jetson Orin NX)
+  ────────────────────────────────────────────────────────────────────────
+   policy.onnx → unitree_sdk2 LowCmd PD   (q_des + Kp/Kd)
+        joint-order map → G1JointIndex · sim-to-sim (MuJoCo) gate first
+      ▼
+   real 29-DoF Unitree G1 throws the jab
+```
 
-**Output:** one **CSV** per clip — headerless, `root_pos[3] + root_rot(xyzw)[4] + 29
-joints`, 30 fps. The contract between capture and training (format-verified against
-the trainer *and* the robot URDF).
+### Capture (laptop GPU)
 
-### 2. Train — RL motion tracking in sim  *(H100)*
-The mocap gives a *kinematic* reference that isn't dynamically feasible — a real G1
-holding those exact angles would topple. So we train a **policy (PPO)** that learns
-to *track* the reference while staying balanced, under domain randomization, in
-**`unitree_rl_mjlab`** (MuJoCo-Warp, GPU-parallel, 4096 envs).
-- `csv_to_npz` adds body velocities/accelerations via forward kinematics.
-- The **`Unitree-G1-Tracking-No-State-Estimation`** task is **deployable by design**:
-  the policy observes only what the real robot can measure (joint encoders + IMU) — no
-  privileged sim state.
-- **Multi-motion:** the task tracks one motion, so we concatenate all ~99 clips into
-  one long reference and the env samples random start points across it → **one policy
-  for all jab variations.** (Single-clip training converges tighter for a crisp demo.)
-- The policy is a small MLP: **observation → 29 joint-position targets** at ~50 Hz.
+A phone video runs through four vision models and then a retargeter. YOLOv8 detects
+the person, ViTPose-H finds 17 2D keypoints, HMR2.0 (4D-Humans) lifts that to a 3D
+body mesh, and GVHMR grounds it in world space as SMPL motion (run with `-s`, no SLAM,
+for static-camera clips). GMR then retargets the human SMPL motion onto the G1 by
+inverse kinematics, solving which 29 G1 joint angles reproduce the motion within the
+robot's joint limits. A human body and a robot body differ, so you cannot copy angles
+directly.
 
-### 3. Deploy — ONNX policy on the robot  *(Jetson Orin)*
-Training auto-exports **`policy.onnx`** (`obs → actions`). On the real **29-DoF** G1,
-it runs on the onboard **Jetson Orin NX** and commands joints via **`unitree_sdk2`**
-LowCmd (PD: target position + Kp/Kd, ~50 Hz). A deploy config maps the policy's joint
-order to the SDK's `G1JointIndex` and sets the gains; validated in MuJoCo sim-to-sim
-before hardware.
+The output is one CSV per clip: headerless, `root_pos[3] + root_rot(xyzw)[4] + 29
+joints`, at 30 fps. That CSV is the contract between capture and training, format-
+verified against the trainer and the robot URDF.
+
+### Train (H100)
+
+The mocap gives a kinematic reference that is not dynamically feasible. A real G1
+holding those exact angles would topple. The fix is a PPO policy that learns to track
+the reference while staying balanced, under domain randomization, in
+`unitree_rl_mjlab` (MuJoCo-Warp, GPU-parallel, 4096 envs). `csv_to_npz` adds body
+velocities and accelerations via forward kinematics. The
+`Unitree-G1-Tracking-No-State-Estimation` task is deployable by design: the policy
+observes only what the real robot can measure (joint encoders and IMU), with no
+privileged sim state.
+
+The task tracks one motion at a time, so to cover every jab we concatenate all ~99
+clips into one long reference and let the env sample random start points across it.
+That gives one policy for all jab variations. Single-clip training converges tighter
+when a crisp demo matters. The policy itself is a small MLP that maps an observation
+to 29 joint-position targets at about 50 Hz.
+
+### Deploy (Jetson Orin)
+
+Training auto-exports `policy.onnx` with an `obs` input and an `actions` output. On
+the real 29-DoF G1 it runs on the onboard Jetson Orin NX and commands joints via
+`unitree_sdk2` LowCmd (PD control: target position plus Kp/Kd, about 50 Hz). A deploy
+config maps the policy's joint order to the SDK's `G1JointIndex` and sets the gains.
+It is validated in MuJoCo sim-to-sim before hardware.
 
 ### Why this design
-- **One portable artifact (CSV)** decouples capture from training — the H100 side never
-  needs the mocap stack, and either trainer (`unitree_rl_mjlab` or Isaac/BeyondMimic)
-  reads the same data.
-- **Deployability is built in** — observation space, joint order, control rate, and the
-  ONNX export all match the real robot from the start (not retrofitted).
-- **Markerless** — a phone is the only capture hardware; no mocap suit or marker rig.
+
+One portable artifact, the CSV, decouples capture from training, so the H100 side
+never needs the mocap stack and either trainer (`unitree_rl_mjlab` or
+Isaac/BeyondMimic) reads the same data. Deployability is built in from the start
+instead of retrofitted: the observation space, joint order, control rate, and ONNX
+export all match the real robot. Capture stays markerless, so a phone is the only
+capture hardware, with no mocap suit or marker rig.
 
 ## Status
+
 | Stage | State |
 |---|---|
-| Capture (video → GVHMR → GMR → CSV) | ✅ built + verified; **~120 clean CSVs** in `handoff/` |
-| Data ↔ trainer format match | ✅ verified vs `csv_to_npz` (xyzw, 29-DoF, joint order) |
-| Data ↔ hardware (29-DoF G1) | ✅ confirmed with Ultimate Bots |
-| Training (RunPod H100, unitree_rl_mjlab) | ✅ single-clip + multi-motion proven; running |
-| Deployable artifact (`policy.onnx`) | ✅ exported + validated (`obs → actions`) |
-| On-robot deploy | ⏳ pending robot time |
+| Capture (video → GVHMR → GMR → CSV) | done and verified; ~120 clean CSVs in `handoff/` |
+| Data ↔ trainer format match | verified against `csv_to_npz` (xyzw, 29-DoF, joint order) |
+| Data ↔ hardware (29-DoF G1) | confirmed with Ultimate Bots |
+| Training (RunPod H100, unitree_rl_mjlab) | single-clip and multi-motion proven; running |
+| Deployable artifact (`policy.onnx`) | exported and validated (obs → actions) |
+| On-robot deploy | pending robot time |
 
-## Repo layout / docs
-- **`TRAINING_RUNPOD.md`** — ★ the real, reproducible training run (RunPod H100 +
-  `unitree_rl_mjlab`: version pins, exact commands, results). Start here for training.
-- **`CAPTURE_GUIDE.md`** — how to film the jab (camera angle, framing).
-- **`handoff/HANDOFF.md`** — the CSV → npz → train handoff spec (format guarantees).
-- **`G1_PLAN.md`** — approach & key decisions (the *why*).
-- **`NEBIUS_TRAINING.md` / `AGENT_TRAIN_RUNBOOK.md`** — the Isaac-Lab/BeyondMimic
-  ALTERNATIVE (planned, not the path we ran). Banner-flagged.
-- **`handoff/`** — the ~120 validated G1-motion CSVs.
-- **`runpod_out/`** — training checkpoints, progress renders, the `policy.onnx`.
-- **`scripts/`** — the capture + processing tooling (below).
+## Repo layout
 
-## Capture scripts (`scripts/`) — local, WSL/Linux
-- `setup_capture.sh` — install GMR + GVHMR
-- `09_gvhmr.sh` → `10_retarget.sh gvhmr` → `11_to_csv.sh` → `20_validate_motion.py` — per-clip chain
-- `process_jab.sh <video>` — one-shot: video → validated CSV (auto-copies to `handoff/`)
-- `batch_jabs.sh <dir>` / `monitor_batch.sh` — batch many clips + live progress
-- `make_filmstrip.py` — build the input→mocap→reference→output GIF above (`make_sidebyside.py` = 2-panel variant)
-- `extract_jabs.py`, `extract_body_models.py`, `analyze_csvs.py` — helpers
+| Path | What it is |
+|---|---|
+| `TRAINING_RUNPOD.md` | The real, reproducible training run (RunPod H100, `unitree_rl_mjlab`): version pins, exact commands, results. Start here for training. |
+| `CAPTURE_GUIDE.md` | How to film the jab (camera angle, framing). |
+| `handoff/HANDOFF.md` | The CSV → npz → train handoff spec with format guarantees. |
+| `G1_PLAN.md` | Approach and key decisions. |
+| `NEBIUS_TRAINING.md`, `AGENT_TRAIN_RUNBOOK.md` | The Isaac-Lab/BeyondMimic alternative we planned but did not run. Banner-flagged. |
+| `handoff/` | The ~120 validated G1-motion CSVs. |
+| `runpod_out/` | Training checkpoints, progress renders, the `policy.onnx`. |
+| `scripts/` | The capture and processing tooling. |
+
+## Capture scripts (`scripts/`, local, WSL/Linux)
+
+| Script | Does |
+|---|---|
+| `setup_capture.sh` | install GMR and GVHMR |
+| `09_gvhmr.sh` → `10_retarget.sh gvhmr` → `11_to_csv.sh` → `20_validate_motion.py` | the per-clip chain |
+| `process_jab.sh <video>` | one-shot: video → validated CSV, auto-copies to `handoff/` |
+| `batch_jabs.sh <dir>`, `monitor_batch.sh` | batch many clips with live progress |
+| `make_filmstrip.py` | build the filmstrip GIF above (`make_sidebyside.py` is the 2-panel variant) |
+| `extract_jabs.py`, `extract_body_models.py`, `analyze_csvs.py` | helpers |
 
 ## Key facts (verified, reproducible)
-- **GVHMR run with `-s`** (SLAM off) — right for static-camera in-place jabs; skips DPVO.
-- **CSV format:** headerless, 36 cols = `root_pos[3] + root_rot_xyzw[4] + 29 dof`,
-  G1-29dof joint order (matches both `unitree_rl_mjlab` and whole_body_tracking).
-- **Trainer version pins** (repo leaves them unpinned, latest breaks): `mujoco==3.5.0`,
-  `warp-lang==1.12.0`, `+scipy`; rendering needs EGL libs + `MUJOCO_GL=egl`.
-- **Hardware:** 29-DoF G1, Jetson Orin NX, `unitree_sdk2` LowCmd PD ~50Hz.
+
+GVHMR runs with `-s` (SLAM off), which suits static-camera in-place jabs and skips the
+DPVO build. The CSV format is headerless with 36 columns, `root_pos[3] +
+root_rot_xyzw[4] + 29 dof`, in G1-29dof joint order, and it matches both
+`unitree_rl_mjlab` and whole_body_tracking. The trainer needs pinned versions because
+the repo leaves them unpinned and the latest releases break: `mujoco==3.5.0`,
+`warp-lang==1.12.0`, plus `scipy`, with rendering through the EGL libs and
+`MUJOCO_GL=egl`. The target hardware is a 29-DoF G1 with a Jetson Orin NX, driven over
+`unitree_sdk2` LowCmd PD at about 50 Hz.
 
 ## Results
-~120 jab clips captured and validated; one policy trained on all of them
-(multi-motion, error plateau ~0.7–0.8 rad = recognizable jab) plus a single-clip path
-for a crisp demo; deployable `policy.onnx` produced. Progress renders + checkpoints in
-`runpod_out/`.
+
+About 120 jab clips captured and validated. One policy trained on all of them
+(multi-motion) plateaus around 0.7 to 0.8 rad joint error, which reads as a
+recognizable jab; a single-clip path gives a crisper demo. The deployable
+`policy.onnx` is produced. Progress renders and checkpoints are in `runpod_out/`.
