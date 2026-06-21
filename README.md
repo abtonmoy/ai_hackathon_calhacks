@@ -113,6 +113,7 @@ capture hardware, with no mocap suit or marker rig.
 | Path | What it is |
 |---|---|
 | `TRAINING_RUNPOD.md` | The real, reproducible training run (RunPod H100, `unitree_rl_mjlab`): version pins, exact commands, results. Start here for training. |
+| `DEPLOY.md` | Pre-flight package for the real G1: the deploy contract (obs 154-dim, action 29, 50 Hz, gains, joint map) extracted from the saved config, plus the checklist. |
 | `CAPTURE_GUIDE.md` | How to film the jab (camera angle, framing). |
 | `data/README.md` | The CSV → npz → train data spec with format guarantees. |
 | `G1_PLAN.md` | Approach and key decisions. |
@@ -142,6 +143,17 @@ the repo leaves them unpinned and the latest releases break: `mujoco==3.5.0`,
 `warp-lang==1.12.0`, plus `scipy`, with rendering through the EGL libs and
 `MUJOCO_GL=egl`. The target hardware is a 29-DoF G1 with a Jetson Orin NX, driven over
 `unitree_sdk2` LowCmd PD at about 50 Hz.
+
+## Sim-to-sim (the trained policy in MuJoCo)
+
+![Trained G1 policy tracking the jab in MuJoCo, ghost is the reference](assets/sim_to_sim.gif)
+
+The trained policy running in MuJoCo against the jab reference. The solid robot is the
+policy; the ghost is the target motion it tracks. The same policy was loaded and run in
+MuJoCo locally on the laptop 4060 (`scripts/wsl_local_mjlab_setup.sh` then
+`scripts/wsl_local_sim.sh`) to confirm it executes end to end off the training box; this
+clip is the converged-policy render, where GL was hardware-accelerated. This is the gate
+before hardware (DEPLOY.md §6): it must track the jab and stay upright in sim first.
 
 ## Results
 
