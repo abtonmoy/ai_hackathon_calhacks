@@ -1,16 +1,18 @@
-# Human jab → Unitree G1 jab policy
+# ROBO JAB
 
-Hack Berkeley / Ultimate Bots Physical-AI hack. The pipeline takes a phone video of
+## Human jab → Unitree G1 jab policy
+
+AI Hackathon 2026 UC Berkeley / Ultimate Bots Physical-AI hack. The pipeline takes a phone video of
 a person throwing a jab and produces a trained, deployable motion-tracking policy for
 a real 29-DoF Unitree G1. Capture is markerless, training runs in sim, and the output
 is an ONNX policy the robot can run.
 
 ![Pipeline: phone video → markerless mocap → G1 reference → trained policy](assets/pipeline_filmstrip.gif)
 
-*Reading the strip left → right: the raw phone video of a human jab; the markerless
+_Reading the strip left → right: the raw phone video of a human jab; the markerless
 mocap (GVHMR) that extracts the 3D motion; that motion retargeted onto the G1, which
 becomes the CSV the model trains on; and the trained G1 policy executing the jab in
-sim. One of about 120 clips in the dataset.*
+sim. One of about 120 clips in the dataset._
 
 ## Architecture
 
@@ -99,39 +101,39 @@ capture hardware, with no mocap suit or marker rig.
 
 ## Status
 
-| Stage | State |
-|---|---|
-| Capture (video → GVHMR → GMR → CSV) | done and verified; ~120 clean CSVs in `data/` |
-| Data ↔ trainer format match | verified against `csv_to_npz` (xyzw, 29-DoF, joint order) |
-| Data ↔ hardware (29-DoF G1) | confirmed with Ultimate Bots |
-| Training (RunPod H100, unitree_rl_mjlab) | done; multi-motion ran 10k iters, converged ~0.68 rad |
-| Deployable artifact (`policy.onnx`) | exported and validated (obs → actions); in `runpod_out/final/` |
-| On-robot deploy | pending robot time |
+| Stage                                    | State                                                          |
+| ---------------------------------------- | -------------------------------------------------------------- |
+| Capture (video → GVHMR → GMR → CSV)      | done and verified; ~120 clean CSVs in `data/`                  |
+| Data ↔ trainer format match              | verified against `csv_to_npz` (xyzw, 29-DoF, joint order)      |
+| Data ↔ hardware (29-DoF G1)              | confirmed with Ultimate Bots                                   |
+| Training (RunPod H100, unitree_rl_mjlab) | done; multi-motion ran 10k iters, converged ~0.68 rad          |
+| Deployable artifact (`policy.onnx`)      | exported and validated (obs → actions); in `runpod_out/final/` |
+| On-robot deploy                          | pending robot time                                             |
 
 ## Repo layout
 
-| Path | What it is |
-|---|---|
-| `TRAINING_RUNPOD.md` | The real, reproducible training run (RunPod H100, `unitree_rl_mjlab`): version pins, exact commands, results. Start here for training. |
-| `DEPLOY.md` | Pre-flight package for the real G1: the deploy contract (obs 154-dim, action 29, 50 Hz, gains, joint map) extracted from the saved config, plus the checklist. |
-| `CAPTURE_GUIDE.md` | How to film the jab (camera angle, framing). |
-| `data/README.md` | The CSV → npz → train data spec with format guarantees. |
-| `G1_PLAN.md` | Approach and key decisions. |
-| `NEBIUS_TRAINING.md`, `AGENT_TRAIN_RUNBOOK.md` | The Isaac-Lab/BeyondMimic alternative we planned but did not run. Banner-flagged. |
-| `data/` | The ~120 validated G1-motion CSVs. |
-| `runpod_out/` | Training checkpoints, progress renders, the `policy.onnx`. |
-| `scripts/` | The capture and processing tooling. |
+| Path                                           | What it is                                                                                                                                                     |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TRAINING_RUNPOD.md`                           | The real, reproducible training run (RunPod H100, `unitree_rl_mjlab`): version pins, exact commands, results. Start here for training.                         |
+| `DEPLOY.md`                                    | Pre-flight package for the real G1: the deploy contract (obs 154-dim, action 29, 50 Hz, gains, joint map) extracted from the saved config, plus the checklist. |
+| `CAPTURE_GUIDE.md`                             | How to film the jab (camera angle, framing).                                                                                                                   |
+| `data/README.md`                               | The CSV → npz → train data spec with format guarantees.                                                                                                        |
+| `G1_PLAN.md`                                   | Approach and key decisions.                                                                                                                                    |
+| `NEBIUS_TRAINING.md`, `AGENT_TRAIN_RUNBOOK.md` | The Isaac-Lab/BeyondMimic alternative we planned but did not run. Banner-flagged.                                                                              |
+| `data/`                                        | The ~120 validated G1-motion CSVs.                                                                                                                             |
+| `runpod_out/`                                  | Training checkpoints, progress renders, the `policy.onnx`.                                                                                                     |
+| `scripts/`                                     | The capture and processing tooling.                                                                                                                            |
 
 ## Capture scripts (`scripts/`, local, WSL/Linux)
 
-| Script | Does |
-|---|---|
-| `setup_capture.sh` | install GMR and GVHMR |
-| `09_gvhmr.sh` → `10_retarget.sh gvhmr` → `11_to_csv.sh` → `20_validate_motion.py` | the per-clip chain |
-| `process_jab.sh <video>` | one-shot: video → validated CSV, auto-copies to `data/` |
-| `batch_jabs.sh <dir>`, `monitor_batch.sh` | batch many clips with live progress |
-| `make_filmstrip.py` | build the filmstrip GIF above (`make_sidebyside.py` is the 2-panel variant) |
-| `extract_jabs.py`, `extract_body_models.py`, `analyze_csvs.py` | helpers |
+| Script                                                                            | Does                                                                        |
+| --------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `setup_capture.sh`                                                                | install GMR and GVHMR                                                       |
+| `09_gvhmr.sh` → `10_retarget.sh gvhmr` → `11_to_csv.sh` → `20_validate_motion.py` | the per-clip chain                                                          |
+| `process_jab.sh <video>`                                                          | one-shot: video → validated CSV, auto-copies to `data/`                     |
+| `batch_jabs.sh <dir>`, `monitor_batch.sh`                                         | batch many clips with live progress                                         |
+| `make_filmstrip.py`                                                               | build the filmstrip GIF above (`make_sidebyside.py` is the 2-panel variant) |
+| `extract_jabs.py`, `extract_body_models.py`, `analyze_csvs.py`                    | helpers                                                                     |
 
 ## Key facts (verified, reproducible)
 
