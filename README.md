@@ -77,9 +77,8 @@ privileged sim state.
 
 The task tracks one motion at a time, so to cover every jab we concatenate all ~99
 clips into one long reference and let the env sample random start points across it.
-That gives one policy for all jab variations. Single-clip training converges tighter
-when a crisp demo matters. The policy itself is a small MLP that maps an observation
-to 29 joint-position targets at about 50 Hz.
+That gives one policy for all jab variations. The policy itself is a small MLP that
+maps an observation to 29 joint-position targets at about 50 Hz.
 
 ### Deploy (Jetson Orin)
 
@@ -105,8 +104,8 @@ capture hardware, with no mocap suit or marker rig.
 | Capture (video → GVHMR → GMR → CSV) | done and verified; ~120 clean CSVs in `data/` |
 | Data ↔ trainer format match | verified against `csv_to_npz` (xyzw, 29-DoF, joint order) |
 | Data ↔ hardware (29-DoF G1) | confirmed with Ultimate Bots |
-| Training (RunPod H100, unitree_rl_mjlab) | single-clip and multi-motion proven; running |
-| Deployable artifact (`policy.onnx`) | exported and validated (obs → actions) |
+| Training (RunPod H100, unitree_rl_mjlab) | done; multi-motion ran 10k iters, converged ~0.68 rad |
+| Deployable artifact (`policy.onnx`) | exported and validated (obs → actions); in `runpod_out/final/` |
 | On-robot deploy | pending robot time |
 
 ## Repo layout
@@ -147,6 +146,8 @@ the repo leaves them unpinned and the latest releases break: `mujoco==3.5.0`,
 ## Results
 
 About 120 jab clips captured and validated. One policy trained on all of them
-(multi-motion) plateaus around 0.7 to 0.8 rad joint error, which reads as a
-recognizable jab; a single-clip path gives a crisper demo. The deployable
-`policy.onnx` is produced. Progress renders and checkpoints are in `runpod_out/`.
+(multi-motion, 10k iterations on an H100) converged to about 0.68 rad joint error,
+which reads as a recognizable jab. The deployable `policy.onnx`, the final checkpoint,
+the 21 training checkpoints, the obs/action config (`params/`), and the converged
+render are in `runpod_out/final/`. Per-cycle progress renders are in
+`runpod_out/progress/`.
