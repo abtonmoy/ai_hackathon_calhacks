@@ -8,18 +8,20 @@ import imageio
 import numpy as np
 
 out_path = sys.argv[1]
-pairs = [a.split("::", 1) for a in sys.argv[2:]]
+pairs = [a.split("::", 2) for a in sys.argv[2:]]   # video::label[::cap_frames]
 H = 200            # common panel height
 MAX = 44           # frames sampled per clip
 FPS = 10
 
 
-def load(path):
+def load(path, cap_frames=None):
     cap = cv2.VideoCapture(path)
     total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 1
+    if cap_frames:                      # only use the first cap_frames (trim idle/loop tails)
+        total = min(total, cap_frames)
     step = max(1, total // MAX)
     frames, i = [], 0
-    while True:
+    while i < total:
         ok, f = cap.read()
         if not ok:
             break
@@ -44,8 +46,10 @@ def label(frames, text):
 
 
 panels = []
-for path, text in pairs:
-    fr = load(path)
+for parts in pairs:
+    path, text = parts[0], parts[1]
+    cap_frames = int(parts[2]) if len(parts) > 2 else None
+    fr = load(path, cap_frames)
     print(f"  {text}: {len(fr)} frames  ({path})")
     if not fr:
         sys.exit(f"ERROR: empty video {path}")
