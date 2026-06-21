@@ -8,7 +8,7 @@
 HANDOFF=/mnt/c/research_projects/calaihacks/g1/handoff
 GVOUT="$HOME/repos/GVHMR/outputs/demo"
 LOG="$HANDOFF/batch_summary.txt"
-TOTAL=50
+TOTAL=50; [ -f "$HANDOFF/batch_total.txt" ] && TOTAL=$(cat "$HANDOFF/batch_total.txt")
 
 done=0; [ -f "$LOG" ] && done=$(grep -c . "$LOG" 2>/dev/null)
 ok=$(grep -c " OK "   "$LOG" 2>/dev/null); ok=${ok:-0}

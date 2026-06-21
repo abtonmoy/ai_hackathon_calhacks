@@ -19,6 +19,7 @@ vids=("$DIR"/*.mp4 "$DIR"/*.mov "$DIR"/*.avi "$DIR"/*.mkv "$DIR"/*.m4v)
 n=${#vids[@]}
 echo "found $n videos in $DIR"
 [ "$n" -gt 0 ] || { echo "no videos found — check the path"; exit 1; }
+echo "$n" > "$HANDOFF/batch_total.txt"   # so monitor_batch.sh shows the right denominator
 
 i=0; ok=0; warn=0; fail=0
 for v in "${vids[@]}"; do

@@ -1,85 +1,56 @@
-# G1 Jab — Runbook (capture stack INSTALLED + VERIFIED)
+# G1 Jab — Phone video → trained, deployable Unitree G1 jab policy
 
-Everything here is built. When the jab video lands, you run these in order.
-Config lives in `config.env`.
+Hack Berkeley / Ultimate Bots Physical-AI hack. We turn **human jab videos** into a
+**motion-tracking policy for a real 29-DoF Unitree G1**, end to end. This README is
+the source of truth and doc map; deep dives are linked.
 
-> **VERIFIED 2026-06-20** on WSL Ubuntu + RTX 4060 (8GB): the full pre-Isaac
-> chain ran end-to-end on GVHMR's example clip —
-> `video → GVHMR → hmr4d_results.pt → GMR retarget → .pkl → official pkl→csv →
-> CSV → validator "OK to train"`. Installed via `setup_capture.sh` +
-> `wsl_gvhmr_setup.sh` + `wsl_gvhmr_deps.sh` (+ body models / checkpoints).
-> Remaining: Isaac-Lab training half (`00_setup.sh`, runs on Nebius).
-> Notes: GVHMR demo run with `-s` (no DPVO); `MUJOCO_GL=egl` for headless GMR;
-> `ffmpeg` only needed for preview videos; root quat is **xyzw** on this path.
-
-## Verified tool chain (CHOSEN: markerless GVHMR)
+## The pipeline (what actually runs)
 ```
-phone video of the jab
-  → GVHMR  tools/demo/demo.py --video -s                  → hmr4d_results.pt
-     → GMR   scripts/gvhmr_to_robot.py --robot unitree_g1   → jab.pkl
-        → GMR scripts/batch_gmr_pkl_to_csv.py (official)    → jab.csv (headerless)
-           → WBT  whole_body_tracking/scripts/csv_to_npz.py → jab.npz
-              → train unitree_rl_lab/scripts/train.py
-                      Unitree-G1-Tracking-No-State-Estimation --motion_file=jab.npz
-                 → play.py (sim) → MuJoCo sim2sim → real G1
-```
-**Shortcut:** a LAFAN1 `fight` clip is already CSV → start at `csv_to_npz.py` and
-train a jab TODAY while our own video is captured.
-
-**Filming the jab:** hand whoever's holding the camera **`CAPTURE_GUIDE.md`** —
-it's a standalone, non-technical checklist (camera angle, settings, motion, QC).
-
-## Files
-```
-config.env                 edit: repo paths, motion name, fps, DoF, quat order
-scripts/setup_capture.sh   PRE-ISAAC: clone+env GMR (CPU) + GVHMR (Linux/WSL)
-scripts/00_setup.sh        ISAAC: clone whole_body_tracking + unitree_rl_lab; Isaac Lab notes
-scripts/09_gvhmr.sh        run GVHMR on the jab video -> hmr4d_results.pt
-scripts/10_retarget.sh     GMR: gvhmr|smplx|bvh -> jab.pkl
-scripts/11_to_csv.sh       GMR official batch_gmr_pkl_to_csv.py -> headerless CSV
-scripts/20_validate_motion.py  gate a reference motion before training (TESTED, stdlib)
-scripts/12_to_npz.sh       CSV -> NPZ via whole_body_tracking
-scripts/30_train.sh        train the tracking policy (Isaac Lab, Nebius GPU)
-scripts/31_play.sh         eval in sim -> sim2sim -> sim2real notes
+phone video
+  → YOLOv8 (detect)  → ViTPose-H (2D kpts)  → HMR2.0 (3D body)  → GVHMR (world-grounded SMPL)   [markerless mocap]
+  → GMR  (retarget SMPL → G1 via IK)                                                              [→ 29-DoF G1 joints]
+  → CSV  (headerless: root_pos[3] + root_rot_xyzw[4] + 29 dof, 30fps)                             [the handoff artifact]
+  → unitree_rl_mjlab  csv_to_npz  → npz                                                           [MuJoCo, no Isaac]
+  → RL motion-tracking (Unitree-G1-Tracking-No-State-Estimation, H100)  → policy + policy.onnx    [deployable]
+  → unitree_sdk2 deploy (LowCmd PD, Jetson Orin)  → real G1 throws the jab
 ```
 
-## Order of operations
-```bash
-# A0. Pre-Isaac capture+retarget stack (no Isaac Sim). GMR here; GVHMR on Linux/WSL:
-bash scripts/setup_capture.sh       # + license-gated SMPL/checkpoint downloads it prints
+## Status
+| Stage | State |
+|---|---|
+| Capture (video → GVHMR → GMR → CSV) | ✅ built + verified; **~120 clean CSVs** in `handoff/` |
+| Data ↔ trainer format match | ✅ verified vs `csv_to_npz` (xyzw, 29-DoF, joint order) |
+| Data ↔ hardware (29-DoF G1) | ✅ confirmed with Ultimate Bots |
+| Training (RunPod H100, unitree_rl_mjlab) | ✅ running; single-clip + multi-motion both proven |
+| Deployable artifact (`policy.onnx`) | ✅ exported + validated (`obs → actions`) |
+| On-robot deploy | ⏳ pending robot time |
 
-# A. While data is being captured — get the TRAINING stack working (no jab needed):
-bash scripts/00_setup.sh            # clone training repos
-# ... install Isaac Lab + deps (see 00_setup.sh output) ...
-# Smoke-test training on a SHIPPED clip to prove GPU+IsaacLab+task wiring:
-#   python scripts/train.py Unitree-G1-Tracking-No-State-Estimation \
-#     --motion_file=src/assets/motions/g1/dance1_subject2.npz --headless --max_iterations 50
+## Doc map
+- **`CAPTURE_GUIDE.md`** — how to film the jab (camera angle, framing). Hand to whoever records.
+- **`TRAINING_RUNPOD.md`** — ★ the REAL training path (RunPod + unitree_rl_mjlab, version pins, exact commands, results). **Start here for training.**
+- **`handoff/HANDOFF.md`** — the CSV → npz → train handoff spec for a teammate (format guarantees).
+- **`../G1_PLAN.md`** — strategy, options, fallback ladder.
+- **`NEBIUS_TRAINING.md` / `AGENT_TRAIN_RUNBOOK.md`** — the Isaac-Lab/BeyondMimic ALTERNATIVE (planned, **not** the path we ran). Kept for reference; see header notes.
 
-# B. Parallel: train on the LAFAN1 'fight' clip TODAY (already CSV):
-bash scripts/12_to_npz.sh  /path/to/lafan1_fight.csv
-bash scripts/30_train.sh
+## Capture scripts (`scripts/`) — local, WSL/Linux
+- `setup_capture.sh` — install GMR + GVHMR (capture stack)
+- `09_gvhmr.sh` → `10_retarget.sh gvhmr` → `11_to_csv.sh` → `20_validate_motion.py` — the per-clip chain
+- `process_jab.sh <video>` — one-shot: video → validated CSV (auto-copies to `handoff/`)
+- `batch_jabs.sh <dir>` / `monitor_batch.sh` — batch many clips + live progress
+- `extract_jabs.py`, `extract_body_models.py`, `analyze_csvs.py` — helpers
 
-# C. When OUR jab video arrives (markerless GVHMR path):
-bash scripts/09_gvhmr.sh                            # video -> hmr4d_results.pt
-bash scripts/10_retarget.sh gvhmr "$GVHMR_PRED"     # -> jab.pkl
-bash scripts/11_to_csv.sh                           # GMR official -> $WORK/csv/jab.csv
-python scripts/20_validate_motion.py "$CSV_OUT" --fps 30 --dof 29   # GATE
-bash scripts/12_to_npz.sh "$CSV_OUT"
-bash scripts/30_train.sh
-bash scripts/31_play.sh             # capture for the demo video
-```
+## Key facts (verified, reproducible)
+- **GVHMR run with `-s`** (SLAM off) — right for static-camera in-place jabs; skips DPVO build.
+- **CSV format** (matches both whole_body_tracking and unitree_rl_mjlab `csv_to_npz`):
+  headerless, 36 cols = `root_pos[3] + root_rot_xyzw[4] + 29 dof`, G1-29dof joint order.
+- **Trainer:** `unitree_rl_mjlab` (MuJoCo). Critical version pins: `mujoco==3.5.0`,
+  `warp-lang==1.12.0`, `+scipy`; render needs EGL libs (`MUJOCO_GL=egl`).
+- **Multi-motion** = concatenate clips into one motion (env samples across it);
+  single-clip = crisper. Multi-motion plateaued ~0.80 rad error.
+- **Hardware:** 29-DoF G1, Jetson Orin NX, `unitree_sdk2` LowCmd PD ~50Hz.
 
-## Two things to confirm once (cheap, prevents silent breakage)
-1. **Joint order / DoF** — pass a real LAFAN1 G1 CSV as `--template-csv` so the
-   bridge copies the exact column order. Set `G1_DOF` to match the asset (29 vs 23).
-2. **Quaternion order** — GMR base rotation is assumed `wxyz`. If the validator or
-   sim looks rotated/unstable, flip `QUAT_ORDER=xyzw` and re-run the bridge.
-
-## Safety (real G1)
-Standing jab, feet planted, no locomotion. Validate in MuJoCo before hardware.
-Clear a safety radius, keep an e-stop, run only with Ultimate Bots engineers.
-
-See `../G1_PLAN.md` for the strategy, paths A/B/C, and the fallback ladder.
-For the training half (CSV -> NPZ -> trained policy on Nebius), see
-`NEBIUS_TRAINING.md` — verified: needs Isaac Lab v2.1.0 + a mandatory WandB
-registry; the trainer loads motions via `--registry_name`, not a local path.
+## Results so far
+~120 jab clips captured and validated; one policy trained on all of them
+(multi-motion, plateau ~0.80 error = recognizable jab) + single-clip path for a
+crisp demo; deployable `policy.onnx` produced. Progress renders + checkpoints in
+`runpod_out/`.

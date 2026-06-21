@@ -30,6 +30,13 @@ retargeted G1 joint data. You only install your training stack: Isaac Lab v2.1.0
 + `whole_body_tracking` + WandB (the G1 robot description comes with the
 whole_body_tracking install in step 1 below).
 
+## NOTE: we actually trained with unitree_rl_mjlab (MuJoCo, no Isaac)
+The executed pipeline used **`unitreerobotics/unitree_rl_mjlab`** (lighter, no Isaac
+Lab, deployable G1 task) — see **`../TRAINING_RUNPOD.md`** for exact commands. Its
+`csv_to_npz` expects the SAME CSV format documented here (verified: xyzw, 29-DoF,
+same joint order), so these CSVs work as-is. The whole_body_tracking instructions
+below are the alternative.
+
 ## What you do (HybridRobotics/whole_body_tracking, BeyondMimic)
 Full runbook with exact commands: `../NEBIUS_TRAINING.md`. Summary:
 1. Isaac Lab **v2.1.0** + `whole_body_tracking` installed on the Nebius GPU.

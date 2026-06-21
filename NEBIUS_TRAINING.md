@@ -1,5 +1,11 @@
 # Nebius Training Runbook — CSV → NPZ → trained G1 jab policy
 
+> ⚠️ **This is the ALTERNATIVE path (Isaac Lab / BeyondMimic) — NOT what we ran.**
+> We trained on **RunPod with `unitree_rl_mjlab` (MuJoCo, no Isaac Lab)**. For the
+> real, executed, reproducible training pipeline see **`TRAINING_RUNPOD.md`**.
+> This doc is kept for reference (Isaac Lab + WandB-registry approach). The CSV
+> data is identical for both; only the trainer differs.
+
 The capture half (video → GMR retarget → **CSV**) is done + verified locally. This
 is the **Isaac-Lab half**, which runs on a Nebius GPU. Verified against the
 HybridRobotics/whole_body_tracking (BeyondMimic) repo — the framework that owns
