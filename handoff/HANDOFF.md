@@ -41,14 +41,21 @@ Full runbook with exact commands: `../NEBIUS_TRAINING.md`. Summary:
 5. `python scripts/rsl_rl/train.py --task=Tracking-Flat-G1-v0 \
    --registry_name {org}-org/wandb-registry-motions/jab01 --headless ...`
 
-## Two things to sanity-check on your end (the only real format risks)
-Both are caught instantly by `replay_npz.py` — if the replayed G1 looks correct,
-you're good; if it's wrong, these are the two knobs:
-1. **Quaternion order.** Our root_rot is **xyzw**. If `csv_to_npz`/BeyondMimic
-   expects **wxyz**, the robot will be rotated/tilted wrong → reorder cols 3–6.
-2. **Joint order / DoF count.** We emit 29 DoF in GMR's G1 order. If your G1
-   asset expects a different order (or 23 DoF), joints will look scrambled →
-   remap. (Expected to match since both target the standard G1-29dof URDF.)
+## Format compatibility — VERIFIED against csv_to_npz.py source (not just assumed)
+We read `scripts/csv_to_npz.py` directly. All three match exactly — no reordering
+or remapping needed:
+1. **Quaternion: xyzw.** csv_to_npz reads cols 3–6 as xyzw and converts internally
+   (`motion[:, [3,0,1,2]]  # convert to wxyz`). Our root_rot is xyzw. ✅
+2. **DoF count: 29.** csv_to_npz's `joint_names` list is 29 entries (12 legs + 3
+   waist + 14 arms). Our CSV has 29. ✅
+3. **Joint order: identical** — legs → waist → left arm → right arm, the standard
+   G1-29dof URDF order. Matches GMR's output order. ✅
+Still worth a 10-second look at `replay_npz.py` output as a final visual confirm,
+but there are no expected mismatches.
+
+A reference copy of `csv_to_npz.py` is in this folder (`csv_to_npz.py`) so you can
+see exactly what it parses. NOTE: it imports `isaaclab`, so it is NOT runnable
+standalone — run the real one from your `whole_body_tracking` clone (step 1).
 
 ## For the 50 episodes
 Each clip becomes one CSV here (same format), one `csv_to_npz` run with a unique
