@@ -1,0 +1,14 @@
+{
+  "source_file": "handoff/IMG_3366.csv",
+  "num_frames": 274,
+  "fps_assumed": 30,
+  "duration_sec": 9.133333333333333,
+  "predicted_punch_type": "jab",
+  "peak_velocity": 0.314779864541264,
+  "peak_frame": 34,
+  "displacement": {
+    "dx": -0.038693679962307215,
+    "dy": -0.016814006492495537,
+    "dz": -0.008243024349212646
+  }
+}
