@@ -5,11 +5,14 @@ Hack Berkeley / Ultimate Bots Physical-AI hack. A full pipeline that turns a
 motion-tracking policy for a real 29-DoF Unitree G1** — markerless mocap →
 retarget → RL in sim → ONNX policy for the robot.
 
-![Raw phone video (left) and the resulting G1 motion in sim (right)](assets/data_example.gif)
+![Pipeline: phone video → markerless mocap → G1 reference → trained policy](assets/pipeline_filmstrip.gif)
 
-*Example training pair — **left:** raw phone video of a human jab; **right:** the same
-motion as a 29-DoF G1 in sim (solid robot = the trained policy; translucent ghost =
-the retargeted reference it tracks). One of ~120 such clips in the dataset.*
+*From one phone clip to a robot policy, left → right:*
+***(1) Input** — raw phone video of a human jab.*
+***(2) Transform** — markerless mocap (GVHMR) extracts the 3D motion.*
+***(3) Model input** — retargeted onto the G1 (this becomes the CSV → npz the model trains on).*
+***(4) Output** — the trained G1 policy executing the jab in sim.*
+*One of ~120 clips in the dataset.*
 
 ## The pipeline
 ```
@@ -97,7 +100,7 @@ before hardware.
 - `09_gvhmr.sh` → `10_retarget.sh gvhmr` → `11_to_csv.sh` → `20_validate_motion.py` — per-clip chain
 - `process_jab.sh <video>` — one-shot: video → validated CSV (auto-copies to `handoff/`)
 - `batch_jabs.sh <dir>` / `monitor_batch.sh` — batch many clips + live progress
-- `make_sidebyside.py` — build the raw-vs-render GIF above
+- `make_filmstrip.py` — build the input→mocap→reference→output GIF above (`make_sidebyside.py` = 2-panel variant)
 - `extract_jabs.py`, `extract_body_models.py`, `analyze_csvs.py` — helpers
 
 ## Key facts (verified, reproducible)
