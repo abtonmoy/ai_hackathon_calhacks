@@ -137,7 +137,7 @@ If anything's off, reshoot now — it's far cheaper than discovering it later.
 
 ---
 
-## 9. Files & handoff
+## 9. Files & data
 - [ ] Transfer the **original video files** (no compression, no screen-recording,
       no social-media re-encode — those destroy quality).
 - [ ] Name them clearly: `jab_side_take03.mp4`, `jab_34_take02.mp4`, etc.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Batch-process a folder of jab videos -> validated G1 CSVs in g1/handoff/.
+# Batch-process a folder of jab videos -> validated G1 CSVs in g1/data/.
 # Runs each clip through process_jab.sh (GVHMR -> retarget -> csv -> validate),
 # continues past failures, and writes a pass/fail summary.
 #
@@ -10,16 +10,16 @@ set -uo pipefail        # NOT -e: one bad clip must not kill the batch
 DIR="${1:?usage: batch_jabs.sh <videos_dir>}"
 PROC=/mnt/c/research_projects/calaihacks/g1/scripts/process_jab.sh
 VAL=/mnt/c/research_projects/calaihacks/g1/scripts/20_validate_motion.py
-HANDOFF=/mnt/c/research_projects/calaihacks/g1/handoff
-LOG="$HANDOFF/batch_summary.txt"
-mkdir -p "$HANDOFF"; : > "$LOG"
+DATA=/mnt/c/research_projects/calaihacks/g1/data
+LOG="$DATA/batch_summary.txt"
+mkdir -p "$DATA"; : > "$LOG"
 
 shopt -s nullglob nocaseglob
 vids=("$DIR"/*.mp4 "$DIR"/*.mov "$DIR"/*.avi "$DIR"/*.mkv "$DIR"/*.m4v)
 n=${#vids[@]}
 echo "found $n videos in $DIR"
 [ "$n" -gt 0 ] || { echo "no videos found — check the path"; exit 1; }
-echo "$n" > "$HANDOFF/batch_total.txt"   # so monitor_batch.sh shows the right denominator
+echo "$n" > "$DATA/batch_total.txt"   # so monitor_batch.sh shows the right denominator
 
 i=0; ok=0; warn=0; fail=0
 for v in "${vids[@]}"; do
@@ -27,11 +27,11 @@ for v in "${vids[@]}"; do
   echo ""
   echo "================= [$i/$n] $stem  <- $(basename "$v") ================="
   bash "$PROC" "$v" || echo "  (process_jab returned non-zero for $stem)"
-  csv="$HANDOFF/${stem}.csv"
+  csv="$DATA/${stem}.csv"
   if [ ! -f "$csv" ]; then
     echo "$stem  FAIL  (no csv produced)" | tee -a "$LOG"; fail=$((fail+1))
   elif python3 "$VAL" "$csv" --fps 30 --dof 29 >/dev/null 2>&1; then
-    echo "$stem  OK    -> handoff/${stem}.csv" | tee -a "$LOG"; ok=$((ok+1))
+    echo "$stem  OK    -> data/${stem}.csv" | tee -a "$LOG"; ok=$((ok+1))
   else
     echo "$stem  WARN  (csv made but validator flagged a blocking issue — inspect)" | tee -a "$LOG"; warn=$((warn+1))
   fi
@@ -39,4 +39,4 @@ done
 
 echo ""
 echo "=== BATCH DONE: $ok OK, $warn flagged, $fail failed (of $n) ==="
-echo "summary: $LOG ; clean CSVs: g1/handoff/*.csv"
+echo "summary: $LOG ; clean CSVs: g1/data/*.csv"

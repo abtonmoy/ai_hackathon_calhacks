@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Read-only quality analysis over the handoff jab CSVs. Does not touch the batch."""
+"""Read-only quality analysis over the data jab CSVs. Does not touch the batch."""
 import csv, glob, math, os, statistics as st, sys
 
-d = sys.argv[1] if len(sys.argv) > 1 else "/mnt/c/research_projects/calaihacks/g1/handoff"
+d = sys.argv[1] if len(sys.argv) > 1 else "/mnt/c/research_projects/calaihacks/g1/data"
 files = sorted(glob.glob(os.path.join(d, "IMG_*.csv")))
 print(f"analyzing {len(files)} CSVs\n")
 

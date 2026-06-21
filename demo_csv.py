@@ -87,5 +87,5 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         analyze(sys.argv[1])
     else:
-        files = sorted(glob.glob("handoff/*.csv"))
+        files = sorted(glob.glob("data/*.csv"))
         analyze(files[0])

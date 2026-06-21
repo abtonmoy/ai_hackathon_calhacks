@@ -79,7 +79,7 @@ def analyze_file(path):
     }
 
 def main():
-    files = sorted(glob.glob("handoff/*.csv"))
+    files = sorted(glob.glob("data/*.csv"))
     print(f"Found {len(files)} CSV files")
 
     results = []

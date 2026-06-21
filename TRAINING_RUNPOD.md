@@ -2,7 +2,7 @@
 
 This is the **real, executed** training pipeline — MuJoCo-based `unitree_rl_mjlab`
 on a RunPod H100, **no Isaac Lab**. It takes the validated CSVs from the capture
-side (`g1/handoff/*.csv`) all the way to a trained, deployable G1 jab policy.
+side (`g1/data/*.csv`) all the way to a trained, deployable G1 jab policy.
 
 > The Isaac-Lab / BeyondMimic route in `NEBIUS_TRAINING.md` and
 > `AGENT_TRAIN_RUNBOOK.md` was the original plan; we switched to `unitree_rl_mjlab`
@@ -44,7 +44,7 @@ needs (Section 5): `apt-get install -y libegl1 libglvnd0 libgles2 libgl1`.
 ## 2. Get the CSVs onto the box
 ```bash
 mkdir -p /workspace/csvs
-# from local: scp -P <port> -i ~/.ssh/id_ed25519 g1/handoff/IMG_*.csv root@<host>:/workspace/csvs/
+# from local: scp -P <port> -i ~/.ssh/id_ed25519 g1/data/IMG_*.csv root@<host>:/workspace/csvs/
 ```
 
 ## 3. CSV → NPZ

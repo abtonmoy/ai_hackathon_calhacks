@@ -1,4 +1,4 @@
-# G1 Jab — Data Handoff (for the Nebius / Isaac Lab side)
+# G1 Jab Dataset (CSVs for training)
 
 You're getting **G1 reference-motion CSVs** produced from human jab videos
 (phone video → GVHMR markerless mocap → GMR retarget to Unitree G1). Your job:

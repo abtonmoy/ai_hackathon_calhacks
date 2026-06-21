@@ -102,7 +102,7 @@ capture hardware, with no mocap suit or marker rig.
 
 | Stage | State |
 |---|---|
-| Capture (video → GVHMR → GMR → CSV) | done and verified; ~120 clean CSVs in `handoff/` |
+| Capture (video → GVHMR → GMR → CSV) | done and verified; ~120 clean CSVs in `data/` |
 | Data ↔ trainer format match | verified against `csv_to_npz` (xyzw, 29-DoF, joint order) |
 | Data ↔ hardware (29-DoF G1) | confirmed with Ultimate Bots |
 | Training (RunPod H100, unitree_rl_mjlab) | single-clip and multi-motion proven; running |
@@ -115,10 +115,10 @@ capture hardware, with no mocap suit or marker rig.
 |---|---|
 | `TRAINING_RUNPOD.md` | The real, reproducible training run (RunPod H100, `unitree_rl_mjlab`): version pins, exact commands, results. Start here for training. |
 | `CAPTURE_GUIDE.md` | How to film the jab (camera angle, framing). |
-| `handoff/HANDOFF.md` | The CSV → npz → train handoff spec with format guarantees. |
+| `data/README.md` | The CSV → npz → train data spec with format guarantees. |
 | `G1_PLAN.md` | Approach and key decisions. |
 | `NEBIUS_TRAINING.md`, `AGENT_TRAIN_RUNBOOK.md` | The Isaac-Lab/BeyondMimic alternative we planned but did not run. Banner-flagged. |
-| `handoff/` | The ~120 validated G1-motion CSVs. |
+| `data/` | The ~120 validated G1-motion CSVs. |
 | `runpod_out/` | Training checkpoints, progress renders, the `policy.onnx`. |
 | `scripts/` | The capture and processing tooling. |
 
@@ -128,7 +128,7 @@ capture hardware, with no mocap suit or marker rig.
 |---|---|
 | `setup_capture.sh` | install GMR and GVHMR |
 | `09_gvhmr.sh` → `10_retarget.sh gvhmr` → `11_to_csv.sh` → `20_validate_motion.py` | the per-clip chain |
-| `process_jab.sh <video>` | one-shot: video → validated CSV, auto-copies to `handoff/` |
+| `process_jab.sh <video>` | one-shot: video → validated CSV, auto-copies to `data/` |
 | `batch_jabs.sh <dir>`, `monitor_batch.sh` | batch many clips with live progress |
 | `make_filmstrip.py` | build the filmstrip GIF above (`make_sidebyside.py` is the 2-panel variant) |
 | `extract_jabs.py`, `extract_body_models.py`, `analyze_csvs.py` | helpers |

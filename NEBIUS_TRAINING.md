@@ -11,7 +11,7 @@ is the **Isaac-Lab half**, which runs on a Nebius GPU. Verified against the
 HybridRobotics/whole_body_tracking (BeyondMimic) repo — the framework that owns
 `csv_to_npz.py`. Use this ONE framework end-to-end; it's internally consistent.
 
-> The handoff file from the capture half is `~/g1_work/csv/<name>.csv`
+> The data file from the capture half is `~/g1_work/csv/<name>.csv`
 > (e.g. `IMG_3425.csv`). Copy it to the Nebius box.
 
 ## 0. Hard requirements (don't skip-read)
@@ -103,10 +103,10 @@ Pick a framework that natively supports a **motion set** if you want one policy.
 The CSVs/npz are framework-agnostic, so the data below works for any of them.
 
 ### 6b. Prep all 50 motions (same for any framework)
-Batch-convert every handoff CSV to npz (each uploads to the registry):
+Batch-convert every data CSV to npz (each uploads to the registry):
 ```bash
 i=1
-for f in /path/to/handoff/IMG_*.csv; do
+for f in /path/to/data/IMG_*.csv; do
   name=$(printf "jab%02d" "$i")
   python scripts/csv_to_npz.py --input_file "$f" --input_fps 30 \
     --output_name "$name" --headless

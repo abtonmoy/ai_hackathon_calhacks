@@ -17,7 +17,7 @@ you cloned — I did not run the training side, only the capture side).
 ---
 
 ## 0. What you already have (no need to recreate)
-- **Data:** ~120 validated G1 reference-motion CSVs in `g1/handoff/IMG_*.csv`.
+- **Data:** ~120 validated G1 reference-motion CSVs in `g1/data/IMG_*.csv`.
   Use the set you're told to train on (e.g. the v2 set `IMG_3429`–`IMG_3499`, or all).
 - **Verified CSV format** (checked against `csv_to_npz.py` source — no remap needed):
   headerless, 36 cols = `root_pos(3)` + `root_rot xyzw(4)` + `29 DoF` (G1-29dof
@@ -97,7 +97,7 @@ Follow `NEBIUS_TRAINING.md` §1–2. Summary:
 Batch-convert every chosen CSV (each runs Isaac Sim for FK):
 ```bash
 i=1
-for f in g1/handoff/IMG_*.csv; do
+for f in g1/data/IMG_*.csv; do
   name=$(printf "jab%03d" "$i")
   python scripts/csv_to_npz.py --input_file "$f" --input_fps 30 \
     --output_name "$name" --headless           # VERIFY flags vs repo

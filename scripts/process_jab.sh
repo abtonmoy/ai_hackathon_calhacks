@@ -59,10 +59,10 @@ CSV="$WORK/csv/${NAME}.csv"
 echo ">> [4/4] validate"
 python3 /mnt/c/research_projects/calaihacks/g1/scripts/20_validate_motion.py "$CSV" --fps 30 --dof 29 || true
 
-# 6) drop a copy into the Windows-side handoff folder for the Nebius/Isaac teammate
-HANDOFF=/mnt/c/research_projects/calaihacks/g1/handoff
-mkdir -p "$HANDOFF"
-cp "$CSV" "$HANDOFF/${NAME}.csv" && echo ">> handoff copy -> g1/handoff/${NAME}.csv"
+# 6) drop a copy into the Windows-side data folder for the Nebius/Isaac teammate
+DATA=/mnt/c/research_projects/calaihacks/g1/data
+mkdir -p "$DATA"
+cp "$CSV" "$DATA/${NAME}.csv" && echo ">> data copy -> g1/data/${NAME}.csv"
 
 echo "=== DONE -> $CSV ==="
 echo "teammate runs (Nebius/Isaac): see g1/NEBIUS_TRAINING.md (csv_to_npz -> train)"

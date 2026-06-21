@@ -63,6 +63,6 @@ def main(path):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python export_robot_action.py handoff/IMG_3327.csv")
+        print("Usage: python export_robot_action.py data/IMG_3327.csv")
         sys.exit(1)
     main(sys.argv[1])

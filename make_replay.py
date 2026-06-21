@@ -13,7 +13,7 @@ def load_xyz(path):
     return arr[:, :3]
 
 if len(sys.argv) < 2:
-    print("Usage: python make_replay.py handoff/IMG_3343.csv")
+    print("Usage: python make_replay.py data/IMG_3343.csv")
     sys.exit(1)
 
 path = sys.argv[1]

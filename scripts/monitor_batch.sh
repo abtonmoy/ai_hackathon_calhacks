@@ -5,10 +5,10 @@
 #   watch -n 5 bash /mnt/c/research_projects/calaihacks/g1/scripts/monitor_batch.sh
 #
 # One-shot snapshot: just run it once.
-HANDOFF=/mnt/c/research_projects/calaihacks/g1/handoff
+DATA=/mnt/c/research_projects/calaihacks/g1/data
 GVOUT="$HOME/repos/GVHMR/outputs/demo"
-LOG="$HANDOFF/batch_summary.txt"
-TOTAL=50; [ -f "$HANDOFF/batch_total.txt" ] && TOTAL=$(cat "$HANDOFF/batch_total.txt")
+LOG="$DATA/batch_summary.txt"
+TOTAL=50; [ -f "$DATA/batch_total.txt" ] && TOTAL=$(cat "$DATA/batch_total.txt")
 
 done=0; [ -f "$LOG" ] && done=$(grep -c . "$LOG" 2>/dev/null)
 ok=$(grep -c " OK "   "$LOG" 2>/dev/null); ok=${ok:-0}
