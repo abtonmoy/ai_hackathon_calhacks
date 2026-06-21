@@ -72,16 +72,119 @@ NOT from a local `.npz`. Format: `{org}-org/wandb-registry-motions/{name}`.
 - Play the trained policy in sim, then sim-to-sim (MuJoCo) → sim-to-real on the G1.
   See the whole_body_tracking repo's eval/play + deployment docs.
 
-## Multiple jabs (the 50)
-Run `csv_to_npz.py` per clip with distinct `--output_name` (jab01, jab02, …) →
-each uploads to the registry. Train per-motion, or build a multi-motion run. For a
-first working result you only need ONE clean jab, not all 50.
+## 6. ONE policy trained on all 50 jabs (multi-motion) — read this carefully
+
+Goal: a single G1 policy that has seen all 50 jab variations (more robust than a
+single-clip policy). Two things to know first.
+
+### 6a. The framework reality
+`whole_body_tracking` / BeyondMimic is **single-motion per policy by design** —
+`--registry_name` points at ONE motion, and BeyondMimic's intended way to get
+*versatile* control is to train many single-motion policies and **compose them
+with guided diffusion at inference** (see the repo). It is NOT built to train one
+RL policy that samples across 50 motions.
+
+So for a **true single unified policy over the 50**, you have two options:
+- **Option A — motion-library trainer (recommended for "one policy, 50 motions").**
+  Use a framework whose tracking env **samples a random motion per episode** from a
+  set: e.g. PHC, ASAP, OmniH2O, ExBody, or `unitree_rl_lab`'s tracking task if you
+  extend it to a motion folder. You point it at all 50 npz/motions, not one.
+- **Option B — stay on BeyondMimic, per-motion + compose.** Train N single-motion
+  policies (Section 4, once per clip) and compose with BeyondMimic's diffusion.
+  This is the framework's native multi-skill story, not one monolithic policy.
+
+Pick a framework that natively supports a **motion set** if you want one policy.
+The CSVs/npz are framework-agnostic, so the data below works for any of them.
+
+### 6b. Prep all 50 motions (same for any framework)
+Batch-convert every handoff CSV to npz (each uploads to the registry):
+```bash
+i=1
+for f in /path/to/handoff/IMG_*.csv; do
+  name=$(printf "jab%02d" "$i")
+  python scripts/csv_to_npz.py --input_file "$f" --input_fps 30 \
+    --output_name "$name" --headless
+  i=$((i+1))
+done
+```
+(For a motion-library trainer that reads local npz, save the npz locally instead
+of / in addition to the registry, per that framework's loader.)
+
+### 6c. Train one policy over the set
+Exact command is framework-specific (it must accept a motion **set**, not a single
+`--registry_name`). Conceptually:
+```bash
+# motion-library trainer: point at all 50 motions / a motions dir / a glob
+python train.py --task=<G1-tracking-multi> --motions <dir-or-list-of-50> --headless ...
+```
+
+### 6d. Time & cost (single H100)
+- **~4–8 hours** for one policy over 50. It does NOT scale 50× — parallel envs
+  sample across the set each iteration, and these 50 are **homogeneous** (all jabs),
+  so convergence is on the **lower end (~4–6 h)**.
+- **~$10–30** at H100 rates — well within the $150 credit.
+- Exact ETA appears in the train log (steps/sec + target iterations) within minutes.
+
+### 6e. Recommended order
+1. **One clip first** (Sections 3–4, ~1–2 h) — proves the whole train→sim→deploy
+   path cheaply. Get a G1 jabbing before investing in the 50-motion run.
+2. **Then the 50-motion policy** (this section, ~4–8 h) — the robust version.
+
+## 7. Which approach gives the BEST physical-robot results?
+
+Short answer: for the best result on hardware, the **unified 50-motion policy** —
+but the reason is *robustness*, and there's a bigger lever (Section 7c) that
+matters more than this choice.
+
+### 7a. Why the 50-motion policy transfers better
+The #1 way a real-robot demo fails is **falling over**, not bad tracking. What
+prevents falls in sim-to-real is **not overfitting to one exact trajectory**:
+- A **single-motion** policy reproduces ONE reference precisely. Looks great in
+  sim, but can be **brittle** on hardware — sensitive to the reality gap, sensor
+  noise, and the momentum of the fast arm extension. Any artifact in that one
+  reference is baked in.
+- A policy trained over **50 jab variations** learns the *essence* of a jab plus a
+  more general **stabilizing controller**. Variation in training → robustness in
+  deployment, and it **averages out per-clip reference noise**. For a standing jab
+  (risk = staying balanced through the punch), seeing 50 versions of that exact
+  perturbation is what hardens it.
+
+### 7b. BeyondMimic diffusion composition — not for this
+Diffusion composition shines when blending **different** skills (jab + dodge +
+dance). For 50 versions of ONE skill it's complexity with no payoff. Skip it.
+
+### 7c. The bigger lever (matters MORE than single-vs-multi)
+Do not over-index on the policy choice. What actually dominates sim-to-real:
+1. **Domain randomization** (mass, friction, motor strength, latency, push
+   perturbations) — the single biggest factor. A well-randomized single-motion
+   policy beats a poorly-randomized 50-motion one.
+2. **Reference physical feasibility** — our 50 references are **kinematic** (from
+   video, not dynamics-checked). The RL reward shaping must make them dynamically
+   achievable. Good references + reward > more references.
+3. **Low-level control / sim-to-real tuning** on the real G1 (PD gains, action
+   filtering, latency modeling).
+If 1–3 are done well, either policy works on hardware. If not, neither will.
+
+### 7d. Verdict
+| Goal | Best choice |
+|------|-------------|
+| Most robust on hardware (won't fall) | **Unified 50-motion policy** |
+| Fastest reliable "something works" | Single cleanest clip |
+| Crispest single jab in sim | Single clip (highest fidelity) |
+
+**Do both, in order** (this is the engineering-correct path, not hedging):
+1. **One clean clip first** — proves the train → sim → **real** path end-to-end and
+   shakes out domain-randomization / PD-tuning issues cheaply (~1–2 h). Most
+   real-robot problems surface here.
+2. **Then the 50-motion policy** — the robust version for the actual demo, once the
+   deploy path is de-risked.
+
+Whichever you pick, **domain randomization is what determines whether it stays on
+its feet.**
 
 ## Note on our local scripts
-`g1/scripts/12_to_npz.sh` and `30_train.sh` were scaffolded before this was
-verified and assume a local-npz flow (closer to unitree_rl_lab's
-`--motion_file`). For whole_body_tracking, the **registry** flow above is correct.
-If you instead use `unitree_rl_lab` (local `--motion_file`, has sim2real deploy),
-its motion-loading differs — pick one framework and stick to it. This runbook
-documents the whole_body_tracking path because `csv_to_npz.py` belongs to it.
-```
+`g1/scripts/12_to_npz.sh` and `30_train.sh` were scaffolded early and assume a
+local-npz flow (closer to `unitree_rl_lab`'s `--motion_file`). For
+`whole_body_tracking`, the **registry** flow in Sections 3–4 is correct. If you
+use a motion-library framework for the 50, follow its loader. The data (CSV → npz)
+is identical either way.

@@ -59,8 +59,12 @@ standalone — run the real one from your `whole_body_tracking` clone (step 1).
 
 ## For the 50 episodes
 Each clip becomes one CSV here (same format), one `csv_to_npz` run with a unique
-`--output_name` (jab01, jab02, …). For a first working policy you only need ONE
-clean jab — not all 50.
+`--output_name` (jab01, jab02, …).
+- **First working policy:** you only need ONE clean jab (Sections 3–4), ~1–2 h.
+- **One policy over all 50** (more robust): see `../NEBIUS_TRAINING.md` Section 6.
+  Key caveat — BeyondMimic is single-motion per policy; one unified policy over 50
+  needs a **motion-library trainer** (PHC/ASAP/OmniH2O/ExBody or an extended
+  unitree_rl_lab), ~4–8 h on an H100. The CSVs work for any of them.
 
 ## Provenance / questions
 Pipeline + scripts: `../README.md`, strategy: `../../G1_PLAN.md`. The capture
