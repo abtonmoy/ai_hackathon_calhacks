@@ -1,0 +1,14 @@
+{
+  "source_file": "handoff/IMG_3351.csv",
+  "num_frames": 271,
+  "fps_assumed": 30,
+  "duration_sec": 9.033333333333333,
+  "predicted_punch_type": "hook",
+  "peak_velocity": 0.273496667255028,
+  "peak_frame": 103,
+  "displacement": {
+    "dx": -0.020453420467674732,
+    "dy": -0.048532234504818916,
+    "dz": -0.030601024627685658
+  }
+}
